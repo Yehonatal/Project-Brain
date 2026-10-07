@@ -119,12 +119,14 @@ class IncrementalScanner:
                         "created_at": tc.get("created_at", step.created_at),
                     })
 
-                self.repo.upsert_step(step_obj, tool_calls_data)
+                self.repo.upsert_step(step_obj, tool_calls_data, commit=False)
                 step_count += 1
 
             # 4. Upsert Artifacts
             for art in raw_session.artifacts:
-                self.repo.upsert_artifact(art)
+                self.repo.upsert_artifact(art, commit=False)
+
+            self.repo.conn.commit()
 
             # 5. Commit offset tracker
             self.offset_tracker.commit_offset(active_file, active_file.stat().st_size)

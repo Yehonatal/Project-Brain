@@ -78,7 +78,6 @@ status: draft
                     "updated_at": "",
                 }
                 draft_skills.append(skill_obj)
-                self.repo.upsert_skill(skill_obj)
 
         # 2. Multi-step domain commands (grouped by non-trivial binary)
         all_episodes = self.repo.conn.execute(
@@ -145,6 +144,6 @@ status: draft
                     "updated_at": "",
                 }
                 draft_skills.append(skill_obj)
-                self.repo.upsert_skill(skill_obj)
 
+        self.repo.upsert_skills(draft_skills)
         return draft_skills

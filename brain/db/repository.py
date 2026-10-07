@@ -110,7 +110,7 @@ class BrainRepository:
     # -------------------------------------------------------------
     # Steps & Tool Calls
     # -------------------------------------------------------------
-    def upsert_step(self, step: Dict[str, Any], tool_calls: Optional[List[Dict[str, Any]]] = None):
+    def upsert_step(self, step: Dict[str, Any], tool_calls: Optional[List[Dict[str, Any]]] = None, commit: bool = True):
         step_sql = """
         INSERT INTO steps (id, conversation_id, step_index, source, type, status, thinking, content, created_at)
         VALUES (:id, :conversation_id, :step_index, :source, :type, :status, :thinking, :content, :created_at)
@@ -123,14 +123,14 @@ class BrainRepository:
 
         if tool_calls:
             self.conn.execute("DELETE FROM tool_calls WHERE step_id = ?", (step["id"],))
-            for tc in tool_calls:
-                tc_sql = """
-                INSERT INTO tool_calls (step_id, conversation_id, tool_name, tool_action, tool_summary, arguments_json, output, exit_code, created_at)
-                VALUES (:step_id, :conversation_id, :tool_name, :tool_action, :tool_summary, :arguments_json, :output, :exit_code, :created_at)
-                """
-                self.conn.execute(tc_sql, tc)
+            tc_sql = """
+            INSERT INTO tool_calls (step_id, conversation_id, tool_name, tool_action, tool_summary, arguments_json, output, exit_code, created_at)
+            VALUES (:step_id, :conversation_id, :tool_name, :tool_action, :tool_summary, :arguments_json, :output, :exit_code, :created_at)
+            """
+            self.conn.executemany(tc_sql, tool_calls)
 
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def get_steps(self, conv_id: str) -> List[Dict[str, Any]]:
         cursor = self.conn.execute(
@@ -318,7 +318,7 @@ class BrainRepository:
     # -------------------------------------------------------------
     # Rules (Distilled from corrections)
     # -------------------------------------------------------------
-    def upsert_rule(self, rule: Dict[str, Any]):
+    def upsert_rule(self, rule: Dict[str, Any], commit: bool = True):
         sql = """
         INSERT INTO rules (id, title, project_id, conversation_id, rule_type, content, created_at)
         VALUES (:id, :title, :project_id, :conversation_id, :rule_type, :content, :created_at)
@@ -327,6 +327,20 @@ class BrainRepository:
             content = excluded.content
         """
         self.conn.execute(sql, rule)
+        if commit:
+            self.conn.commit()
+
+    def upsert_rules(self, rules: List[Dict[str, Any]]):
+        if not rules:
+            return
+        sql = """
+        INSERT INTO rules (id, title, project_id, conversation_id, rule_type, content, created_at)
+        VALUES (:id, :title, :project_id, :conversation_id, :rule_type, :content, :created_at)
+        ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            content = excluded.content
+        """
+        self.conn.executemany(sql, rules)
         self.conn.commit()
 
     def get_rules(self, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -341,7 +355,7 @@ class BrainRepository:
     # -------------------------------------------------------------
     # Artifacts & ADRs & Skills
     # -------------------------------------------------------------
-    def upsert_artifact(self, artifact: Dict[str, Any]):
+    def upsert_artifact(self, artifact: Dict[str, Any], commit: bool = True):
         sql = """
         INSERT INTO artifacts (id, conversation_id, project_id, file_path, file_name, artifact_type, content, summary, created_at)
         VALUES (:id, :conversation_id, :project_id, :file_path, :file_name, :artifact_type, :content, :summary, :created_at)
@@ -350,6 +364,20 @@ class BrainRepository:
             summary = excluded.summary
         """
         self.conn.execute(sql, artifact)
+        if commit:
+            self.conn.commit()
+
+    def upsert_artifacts(self, artifacts: List[Dict[str, Any]]):
+        if not artifacts:
+            return
+        sql = """
+        INSERT INTO artifacts (id, conversation_id, project_id, file_path, file_name, artifact_type, content, summary, created_at)
+        VALUES (:id, :conversation_id, :project_id, :file_path, :file_name, :artifact_type, :content, :summary, :created_at)
+        ON CONFLICT(id) DO UPDATE SET
+            content = excluded.content,
+            summary = excluded.summary
+        """
+        self.conn.executemany(sql, artifacts)
         self.conn.commit()
 
     def get_artifacts(self, conv_id: Optional[str] = None, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -361,7 +389,7 @@ class BrainRepository:
             cursor = self.conn.execute("SELECT * FROM artifacts ORDER BY created_at DESC LIMIT 100")
         return [dict(row) for row in cursor.fetchall()]
 
-    def upsert_adr(self, adr: Dict[str, Any]):
+    def upsert_adr(self, adr: Dict[str, Any], commit: bool = True):
         sql = """
         INSERT INTO adrs (id, title, project_id, conversation_id, status, context, decision, consequences, raw_markdown, created_at)
         VALUES (:id, :title, :project_id, :conversation_id, :status, :context, :decision, :consequences, :raw_markdown, :created_at)
@@ -370,6 +398,20 @@ class BrainRepository:
             decision = excluded.decision
         """
         self.conn.execute(sql, adr)
+        if commit:
+            self.conn.commit()
+
+    def upsert_adrs(self, adrs: List[Dict[str, Any]]):
+        if not adrs:
+            return
+        sql = """
+        INSERT INTO adrs (id, title, project_id, conversation_id, status, context, decision, consequences, raw_markdown, created_at)
+        VALUES (:id, :title, :project_id, :conversation_id, :status, :context, :decision, :consequences, :raw_markdown, :created_at)
+        ON CONFLICT(id) DO UPDATE SET
+            title = excluded.title,
+            decision = excluded.decision
+        """
+        self.conn.executemany(sql, adrs)
         self.conn.commit()
 
     def get_adrs(self, project_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -379,7 +421,7 @@ class BrainRepository:
             cursor = self.conn.execute("SELECT a.*, p.name as project_name FROM adrs a LEFT JOIN projects p ON a.project_id = p.id")
         return [dict(row) for row in cursor.fetchall()]
 
-    def upsert_skill(self, skill: Dict[str, Any]):
+    def upsert_skill(self, skill: Dict[str, Any], commit: bool = True):
         sql = """
         INSERT INTO skills (id, name, description, instructions, trigger_pattern, source_sessions, status, installed_path, created_at, updated_at)
         VALUES (:id, :name, :description, :instructions, :trigger_pattern, :source_sessions, :status, :installed_path, :created_at, :updated_at)
@@ -390,6 +432,22 @@ class BrainRepository:
             updated_at = excluded.updated_at
         """
         self.conn.execute(sql, skill)
+        if commit:
+            self.conn.commit()
+
+    def upsert_skills(self, skills: List[Dict[str, Any]]):
+        if not skills:
+            return
+        sql = """
+        INSERT INTO skills (id, name, description, instructions, trigger_pattern, source_sessions, status, installed_path, created_at, updated_at)
+        VALUES (:id, :name, :description, :instructions, :trigger_pattern, :source_sessions, :status, :installed_path, :created_at, :updated_at)
+        ON CONFLICT(name) DO UPDATE SET
+            description = excluded.description,
+            instructions = excluded.instructions,
+            status = excluded.status,
+            updated_at = excluded.updated_at
+        """
+        self.conn.executemany(sql, skills)
         self.conn.commit()
 
     def get_skills(self) -> List[Dict[str, Any]]:

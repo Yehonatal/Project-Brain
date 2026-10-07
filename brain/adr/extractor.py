@@ -82,6 +82,6 @@ class ADRExtractor:
                 "created_at": art["created_at"],
             }
             adrs.append(adr_obj)
-            self.repo.upsert_adr(adr_obj)
 
+        self.repo.upsert_adrs(adrs)
         return adrs

@@ -80,9 +80,9 @@ class RuleDistiller:
                         "created_at": "",
                     }
                     distilled_rules.append(rule_obj)
-                    self.repo.upsert_rule(rule_obj)
                     break
 
+        self.repo.upsert_rules(distilled_rules)
         return distilled_rules
 
     def export_rule_to_project(self, rule_id: str, target_dir: Optional[Path] = None) -> Path:

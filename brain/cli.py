@@ -51,19 +51,22 @@ def main():
 
     if args.subcommand == "scan":
         scanner = IncrementalScanner(repo, CONFIG)
-        print("Scanning projects and sessions...")
+        print("[Project Brain] Scanning projects and sessions...")
         res = scanner.scan_all(force=args.force)
         print(f"✓ Indexed {res['projects_indexed']} projects, {res['conversations_indexed']} sessions, {res['episodes_indexed']} episodes, {res['steps_indexed']} steps.")
         
         # Run distillation pipelines
+        print("[Project Brain] Distilling rules from user feedback...")
         rd = RuleDistiller(repo)
         rules = rd.distill_rules()
-        print(f"✓ Distilled {len(rules)} rules from user feedback.")
+        print(f"✓ Distilled {len(rules)} rules.")
 
+        print("[Project Brain] Mining candidate skills...")
         sm = CandidateSkillMiner(repo)
         skills = sm.mine_draft_skills()
         print(f"✓ Mined {len(skills)} candidate draft skills.")
 
+        print("[Project Brain] Extracting Architecture Decision Records...")
         ae = ADRExtractor(repo)
         adrs = ae.extract_from_artifacts()
         print(f"✓ Extracted {len(adrs)} Architecture Decision Records.")
